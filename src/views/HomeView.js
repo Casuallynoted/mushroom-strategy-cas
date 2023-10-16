@@ -218,9 +218,12 @@ class HomeView extends AbstractView {
       let window = Helper.strategyOptions.areas[area.area_id]?.window;
       let lock = Helper.strategyOptions.areas[area.area_id]?.lock;
       let door = Helper.strategyOptions.areas[area.area_id]?.door;
+      let motion = Helper.strategyOptions.areas[area.area_id]?.motion ?? Helper.strategyOptions.areas[area.area_id]?.occupancy ?? Helper.strategyOptions.areas[area.area_id]?.presence;
+
+      let chips = []
       
       // Search for sensors if not configured
-      if (!(temperature || humidity || lux)) {
+      if (!(temperature || humidity || lux || motion)) {
         const sensors  = Helper.getDeviceEntities(area, "sensor");
         
         if (sensors.length) {
@@ -238,6 +241,10 @@ class HomeView extends AbstractView {
               case "illuminance":
                 lux = sensor.entity_id;
                 break;
+              case "motion":
+              case "occupancy":
+              case "presence":
+                motion = binary_sensor.entity_id;
               default:
                 // Handle other device classes if needed
                 break;
@@ -264,6 +271,22 @@ class HomeView extends AbstractView {
           },
           ...cardOptions,
         }
+      }
+      if (motion) {
+        chips.push({
+          type: 'conditional',
+          conditions: [
+            {
+              entity: motion,
+              state: 'on'
+            }
+          ],
+          chip: {
+            type: 'template',
+            entity: motion,
+            icon: 'mdi:motion-sensor'
+          }
+        })
       }
       
       // Search for binary sensors if not configured
@@ -318,6 +341,29 @@ class HomeView extends AbstractView {
             badge_color: "red",
           },
           ...cardOptions,
+        }
+      }
+
+      if (chips.length) {
+        // See https://community.home-assistant.io/t/mushroom-cards-build-a-beautiful-dashboard-easily/388590/8146
+        cardOptions = {
+          type: 'custom:stack-in-card',
+          mode: 'horizontal',
+          cards: [
+            cardOptions,
+            {
+              type: 'custom:mushroom-chips-card',
+              chips: chips.map(chip => ({
+                ...chip,
+                card_mod: {
+                  style: `border: none;
+                  box-shadow: none !important;
+                  background: none !important;`
+                }
+              })),
+              alignment: 'end'
+            }
+          ]
         }
       }
 
