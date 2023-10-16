@@ -250,7 +250,7 @@ class HomeView extends AbstractView {
       if (temperature || humidity || lux) {
         let secondary = ``;
         if (temperature) {
-          secondary = secondary + `❄️{{ states('${temperature}') | int }}°`
+          secondary = secondary + `🌡️{{ states('${temperature}') | int }}°`
         }
         if (humidity) {
           secondary = secondary + `💧{{ states('${humidity}')}}%`
