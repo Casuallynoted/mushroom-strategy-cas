@@ -57,22 +57,7 @@ class HomeView extends AbstractView {
         {
           type: "horizontal-stack",
           cards: personCards,
-        },
-        {
-          type: "custom:mushroom-template-card",
-          primary: "{% set time = now().hour %} {% if (time >= 18) %} Good Evening, {{user}}! {% elif (time >= 12) %} Good Afternoon, {{user}}! {% elif (time >= 5) %} Good Morning, {{user}}! {% else %} Hello, {{user}}! {% endif %}",
-          icon: "mdi:hand-wave",
-          icon_color: "orange",
-          tap_action: {
-            action: "none",
-          },
-          double_tap_action: {
-            action: "none",
-          },
-          hold_action: {
-            action: "none",
-          },
-        },
+        }
       ];
 
       // Add quick access cards.
@@ -218,100 +203,188 @@ class HomeView extends AbstractView {
       let window = Helper.strategyOptions.areas[area.area_id]?.window;
       let lock = Helper.strategyOptions.areas[area.area_id]?.lock;
       let door = Helper.strategyOptions.areas[area.area_id]?.door;
+      let motion = Helper.strategyOptions.areas[area.area_id]?.motion ?? Helper.strategyOptions.areas[area.area_id]?.occupancy ?? Helper.strategyOptions.areas[area.area_id]?.presence;
+      let cover = Helper.strategyOptions.areas[area.area_id]?.cover;
+
+      let chips = []
       
       // Search for sensors if not configured
-      if (!(temperature || humidity || lux)) {
-        const sensors  = Helper.getDeviceEntities(area, "sensor");
-        
-        if (sensors.length) {
-          const sensorStates = Helper.getStateEntities(area, "sensor");
-          for (const sensor of sensors) {
-            const sensorState = sensorStates.find(state => state.entity_id === sensor.entity_id);
-            if (sensorState.state === "unavailable") continue;
-            switch (sensorState.attributes.device_class) {
-              case "temperature":
-                temperature = sensor.entity_id;
-                break;
-              case "humidity":
-                humidity = sensor.entity_id;
-                break;
-              case "illuminance":
-                lux = sensor.entity_id;
-                break;
-              default:
-                // Handle other device classes if needed
-                break;
-            }
+      const findStates = (area, entity_type) => {
+        let found = []
+        const entities = Helper.getDeviceEntities(area, entity_type);
+        if (entities.length) {
+          const entitiesStates = Helper.getStateEntities(area, entity_type);
+          for (const entity of entities) {
+            const state = entitiesStates.find(state => state.entity_id === entity.entity_id);
+            if (state.state === "unavailable") continue;
+            found.push(state)
           }
+        }
+        return found
+      }
+      const makeChip = (type, entity_id, options = {}, condition = {state: 'on'}) => {
+        const chip = {
+          type: 'entity',
+          content_info: 'none',
+          tap_action: {
+            action: 'toggle'
+          },
+          double_tap_action: {
+            action: 'more-info'
+          },
+          hold_action: {
+            action: 'more-info'
+          },
+          entity: entity_id,
+          ...options,
+        }
+
+        return type !== 'conditional' ? chip : {
+          type,
+          conditions: [
+            {
+              entity: entity_id,
+              ...condition
+            }
+          ],
+          chip
         }
       }
 
+      findStates(area, "sensor").forEach(sensorState => {
+        switch (sensorState.attributes.device_class) {
+          case "temperature":
+            if (!temperature) {
+              temperature = sensorState.entity_id;
+            }
+            
+            break;
+          case "humidity":
+            if (!humidity) {
+              humidity = sensorState.entity_id;
+            }
+            
+            break;
+          case "illuminance":
+            if (!lux) {
+              lux = sensorState.entity_id;
+            }
+            
+            break;
+          case "motion":
+          case "occupancy":
+          case "presence":
+            if (!motion) {
+              motion = sensorState.entity_id;
+            }
+            
+            break;
+          default:
+            // Handle other device classes if needed
+            break;
+        }
+      });
+
       // If configured or found, create template
-      if (temperature || humidity || lux) {
-        let secondary = ``;
+
+      const co2EntityIds = findStates(area, "sensor").filter(state => {
+        return 'carbon_dioxide' === state.attributes.device_class
+      }).map(state => state.entity_id)
+      if (temperature || humidity || lux || co2EntityIds.length) {
+        let secondary = [];
         if (temperature) {
-          secondary = secondary + `🌡️{{ states('${temperature}') | int }}°`
+          secondary.push(`🌡️{{ states('${temperature}') | int }}°`)
         }
         if (humidity) {
-          secondary = secondary + `💧{{ states('${humidity}')}}%`
+          secondary.push(`💧{{ states('${humidity}') | int }}%`)
         }
-        if (lux) {
-          secondary = secondary + `☀️{{ states('${lux}')}}lx`
-        }
+        // if (lux) {
+        //   secondary.push(`☀️{{ states('${lux}') | int }}lx`)
+        // }
+        co2EntityIds.forEach(entityId => {
+          secondary.push(`😶‍🌫️{{ states('${entityId}') }}{{ state_attr('${entityId}', 'unit_of_measurement') or '' }}`)
+        })
         cardOptions = {
           ...{
-            secondary: secondary,
+            secondary: secondary.join(' '),
+            multiline_secondary: true
           },
           ...cardOptions,
         }
       }
+      if (motion) {
+        chips.push(makeChip('conditional', motion, {
+          icon: 'mdi:motion-sensor',
+          tap_action: {
+            action: 'more-info'
+          }
+        }))
+      }
+
+      findStates(area, "cover").forEach(state => {
+        chips.push(makeChip('entity', state.entity_id))
+      });
+
+      findStates(area, "climate").forEach(state => {
+        chips.push(makeChip('conditional', state.entity_id, {}, {state_not: "off"}))
+      })
+      
+      // device_class: carbon_dioxide
       
       // Search for binary sensors if not configured
       if (!(window || lock || door)) {
-        const binary_sensors  = Helper.getDeviceEntities(area, "binary_sensor");
-        if (binary_sensors.length) {
-          const binary_sensorStates = Helper.getStateEntities(area, "binary_sensor");
-          for (const binary_sensor of binary_sensors) {
-            const binary_sensorState = binary_sensorStates.find(state => state.entity_id === binary_sensor.entity_id);
-            if (!binary_sensorState.state === "unavailable") continue;
-            switch (binary_sensorState.attributes.device_class) {
-              case "window":
-                window = binary_sensor.entity_id;
-                break;
-              case "lock":
-                lock = binary_sensor.entity_id;
-                break;
-              case "door":
-                door = binary_sensor.entity_id;
-                break;
-              default:
-                // Handle other device classes if needed
-                break;
-            }
-          }
+        if (!lock) {
+          lock = findStates(area, "lock")[0]?.entity_id
         }
+        findStates(area, "binary_sensor").forEach(binarySensorState => {
+          switch (binarySensorState.attributes.device_class) {
+            case "window":
+              if (!window) {
+                window = binarySensorState.entity_id;
+              }
+              
+              break;
+            case "lock":
+              if (!lock) {
+                lock = binarySensorState.entity_id;
+              }
+              
+              break;
+            case "door":
+              if (!door) {
+                door = binarySensorState.entity_id;
+              }
+              
+              break;
+            default:
+              // Handle other device classes if needed
+              break;
+          }
+        })
       }
 
       // If configured or found, create template
       if (window || door || lock) {
         let badge;
-        if (window) {
-          badge = `{% if is_state('${window}', 'on') %}mdi:window-open-variant`;
-          if (door) {
-            badge = badge + `{% elif is_state('${door}', 'on') %}mdi:door-open`
-          } 
-          if (lock) {
-            badge = badge + `{% elif is_state('${lock}', 'on') %}mdi:lock-open`
-          }
-        } else if (door) {
-          badge = `{% if is_state('${door}', 'on') %}mdi:door-open`;
-          if (lock) {
-            badge = badge + `{% elif is_state('${lock}', 'on') %}mdi:lock-open`
-          }
-        } else if (lock) {
-          badge = `{% if is_state('${lock}', 'on') %}mdi:lock-open`
+        let badgeConditions = []
+        
+        if (lock) {
+          badgeConditions.push({entity: lock, state: 'unlocked', icon: 'mdi:lock-open'})
         }
-        badge = badge + `{% endif %}`
+        if (window) {
+          badgeConditions.push({entity: window, state: 'on', icon: 'mdi:window-open-variant'})
+        }
+        if (door) {
+          badgeConditions.push({entity: door, state: 'on', icon: 'mdi:door-open'})
+        }
+
+        if (badgeConditions.length) {
+          badge = badgeConditions
+            .map(condition => `is_state('${condition.entity}', '${condition.state}') %}${condition.icon}{%`)
+            .join(' elif ')
+          badge = `{% if ${badge} endif %}`
+        }
+
         cardOptions = {
           ...{
             badge_icon: badge,
@@ -323,7 +396,74 @@ class HomeView extends AbstractView {
 
       // Get a card for the area.
       if (!Helper.strategyOptions.areas[area.area_id]?.hidden) {
-        areaCards.push(new module.AreaCard(area, cardOptions).getCard());
+        let card = new module.AreaCard(area, cardOptions).getCard()
+        if (chips.length) {
+          console.log('wrapping in stack', {cardOptions, card, chips})
+          // See https://community.home-assistant.io/t/mushroom-cards-build-a-beautiful-dashboard-easily/388590/8146
+          card = {
+            type: 'custom:stack-in-card',
+            mode: 'horizontal',
+            cards: [
+              {
+                ...card,
+                card_mod: {
+                  style: `ha-card {
+                    border: none;
+                  }`
+                }
+              },
+              {
+                type: 'custom:mushroom-chips-card',
+                chips: chips.map(chip => {
+                  const card_mod = {
+                    style: `:host {
+                      --chip-height: 25px;
+                      --chip-box-shadow: 0px 1px 4px rgba(0,0,0,0.2);
+                      --chip-border-width: 0px;
+                      --chip-spacing: 2px;
+                    }
+                    `
+                  }
+                  if (chip.type === 'conditional') {
+                    return {
+                      ...chip,
+                      chip: {
+                        ...chip.chip,
+                        card_mod,
+                      }
+                    }
+                  }
+
+                  return {
+                    ...chip,
+                    card_mod
+                  }
+                }),
+                alignment: 'end',
+                card_mod: {
+                  style: `
+                  :host {
+                    position: absolute !important;
+                    max-width: 1%;
+                    top: 3px;
+                    right: 3px;
+                    flex-grow: 0;
+                  }
+
+                  .chip-container {
+                    gap: 3px;
+                    flex-wrap: nowrap !important;
+                  }
+                  `
+                }
+              }
+            ],
+            
+          }
+          console.log('wrapped in stack', {card})
+        }
+
+        areaCards.push(card);
       }
 
       // Horizontally group every two area cards if all cards are created.
