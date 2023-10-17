@@ -18,6 +18,7 @@ class LockCard extends AbstractCard {
   #defaultOptions = {
     type: "custom:mushroom-lock-card",
     icon: undefined,
+    layout: 'horizontal',
   };
 
   /**
