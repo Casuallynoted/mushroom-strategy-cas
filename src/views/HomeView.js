@@ -205,6 +205,7 @@ class HomeView extends AbstractView {
       let door = Helper.strategyOptions.areas[area.area_id]?.door;
       let motion = Helper.strategyOptions.areas[area.area_id]?.motion ?? Helper.strategyOptions.areas[area.area_id]?.occupancy ?? Helper.strategyOptions.areas[area.area_id]?.presence;
       let cover = Helper.strategyOptions.areas[area.area_id]?.cover;
+      let lightGroup = Helper.strategyOptions.areas[area.area_id]?.light_group;
 
       let chips = []
       
@@ -231,7 +232,7 @@ class HomeView extends AbstractView {
       }
       const makeChip = (type, entity_id, options = {}, condition = {state: 'on'}) => {
         const chip = {
-          type: 'entity',
+          type: type !== 'conditional' ? type : 'entity',
           content_info: 'none',
           tap_action: {
             action: 'toggle'
@@ -331,6 +332,32 @@ class HomeView extends AbstractView {
       findStates(area, "climate").forEach(state => {
         chips.push(makeChip('conditional', state.entity_id, {}, {state_not: "off"}))
       })
+
+      
+      if (lightGroup) {
+        let lightChip = {
+          type: 'conditional',
+          conditions: [
+            {entity: lightGroup, state: 'on'}
+          ],
+          chip: {
+            type: 'template',
+            entity: lightGroup,
+            icon: 'mdi:lightbulb-group',
+            // content: `{{ ['${lightGroup}'] | expand | selectattr('state','eq','on') | list | count }}`,
+            tap_action: {
+              action: 'toggle'
+            },
+            double_tap_action: {
+              action: 'more-info'
+            },
+            hold_action: {
+              action: 'more-info'
+            },
+          }
+        }
+        chips.push(lightChip)
+      }
 
       // If configured or found, create template
       let badgeConditions = []
