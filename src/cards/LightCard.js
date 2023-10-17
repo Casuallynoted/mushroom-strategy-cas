@@ -21,6 +21,9 @@ class LightCard extends AbstractCard {
     show_brightness_control: true,
     show_color_control: true,
     use_light_color: true,
+    show_color_temp_control: true,
+    collapsible_controls: true,
+    layout: 'horizontal',
     double_tap_action: {
       target: {
         entity_id: undefined,
