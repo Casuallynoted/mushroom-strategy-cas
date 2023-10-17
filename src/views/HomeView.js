@@ -399,7 +399,7 @@ class HomeView extends AbstractView {
                     card_mod
                   }
                 }),
-                alignment: 'justify'
+                alignment: 'center'
               }
             ],
             
