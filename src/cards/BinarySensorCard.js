@@ -17,7 +17,7 @@ class BinarySensorCard extends SensorCard {
    */
   #defaultOptions = {
     type: "custom:mushroom-entity-card",
-    icon: "mdi:power-cycle",
+    secondary_info: 'last-changed',
     icon_color: "green",
   };
 
