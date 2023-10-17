@@ -321,6 +321,9 @@ class HomeView extends AbstractView {
       findStates(area, "cover").forEach(state => {
         chips.push(makeChip('entity', state.entity_id))
       });
+      findStates(area, "media_player").forEach(state => {
+        chips.push(makeChip('conditional', state.entity_id, {}, {state: "playing"}))
+      });
 
       findStates(area, "climate").forEach(state => {
         chips.push(makeChip('conditional', state.entity_id, {}, {state_not: "off"}))
