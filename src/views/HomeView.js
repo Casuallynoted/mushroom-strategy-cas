@@ -360,7 +360,7 @@ class HomeView extends AbstractView {
           // See https://community.home-assistant.io/t/mushroom-cards-build-a-beautiful-dashboard-easily/388590/8146
           card = {
             type: 'custom:stack-in-card',
-            mode: 'horizontal',
+            mode: 'vertical',
             cards: [
               {
                 ...card,
@@ -397,23 +397,7 @@ class HomeView extends AbstractView {
                     card_mod
                   }
                 }),
-                alignment: 'end',
-                card_mod: {
-                  style: `
-                  :host {
-                    position: absolute !important;
-                    max-width: 1%;
-                    top: 3px;
-                    right: 3px;
-                    flex-grow: 0;
-                  }
-
-                  .chip-container {
-                    gap: 3px;
-                    flex-wrap: nowrap !important;
-                  }
-                  `
-                }
+                alignment: 'justify'
               }
             ],
             
