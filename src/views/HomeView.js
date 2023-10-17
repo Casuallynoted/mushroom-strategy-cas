@@ -397,7 +397,12 @@ class HomeView extends AbstractView {
                     card_mod
                   }
                 }),
-                alignment: 'center'
+                alignment: 'center',
+                card_mod: {
+                  style: `ha-card {
+                    margin-bottom: 10px;
+                  }`
+                }
               }
             ],
             
