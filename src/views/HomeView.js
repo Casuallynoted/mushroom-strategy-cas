@@ -209,14 +209,23 @@ class HomeView extends AbstractView {
       let chips = []
       
       // Search for sensors if not configured
-      const findStates = (area, entity_type) => {
+      const findStates = (area, entity_type, device_class = null) => {
         let found = []
         const entities = Helper.getDeviceEntities(area, entity_type);
         if (entities.length) {
           const entitiesStates = Helper.getStateEntities(area, entity_type);
           for (const entity of entities) {
             const state = entitiesStates.find(state => state.entity_id === entity.entity_id);
-            if (state.state === "unavailable") continue;
+            if (state.state === "unavailable") {
+              continue;
+            }
+            if (device_class
+              && Array.isArray(device_class)
+                ? !device_class.includes(state.attributes.device_class)
+                : device_class !== state.attributes.device_class
+            ) {
+              continue;
+            }
             found.push(state)
           }
         }
@@ -251,39 +260,27 @@ class HomeView extends AbstractView {
         }
       }
 
-      findStates(area, "sensor").forEach(sensorState => {
-        switch (sensorState.attributes.device_class) {
-          case "temperature":
-            if (!temperature) {
-              temperature = sensorState.entity_id;
-            }
-            
-            break;
-          case "humidity":
-            if (!humidity) {
-              humidity = sensorState.entity_id;
-            }
-            
-            break;
-          case "illuminance":
-            if (!lux) {
-              lux = sensorState.entity_id;
-            }
-            
-            break;
-          case "motion":
-          case "occupancy":
-          case "presence":
-            if (!motion) {
-              motion = sensorState.entity_id;
-            }
-            
-            break;
-          default:
-            // Handle other device classes if needed
-            break;
-        }
-      });
+      if (!temperature) {
+        temperature = findStates(area, "sensor", "temperature")[0]?.entity_id
+      }
+      if (!humidity) {
+        humidity = findStates(area, "sensor", "humidity")[0]?.entity_id
+      }
+      if (!lux) {
+        lux = findStates(area, "sensor", "illuminance")[0]?.entity_id
+      }
+      if (!motion) {
+        motion = findStates(area, "binary_sensor", ["motion", "occupancy", "presence"])[0]?.entity_id
+      }
+      if (!lock) {
+        lock = findStates(area, "lock")[0]?.entity_id || findStates(area, "binary_sensor", "lock")[0]?.entity_id
+      }
+      if (!window) {
+        window = findStates(area, "binary_sensor", "window")[0]?.entity_id
+      }
+      if (!door) {
+        door = findStates(area, "binary_sensor", "door")[0]?.entity_id
+      }
 
       // If configured or found, create template
 
@@ -328,62 +325,23 @@ class HomeView extends AbstractView {
       findStates(area, "climate").forEach(state => {
         chips.push(makeChip('conditional', state.entity_id, {}, {state_not: "off"}))
       })
-      
-      // device_class: carbon_dioxide
-      
-      // Search for binary sensors if not configured
-      if (!(window || lock || door)) {
-        if (!lock) {
-          lock = findStates(area, "lock")[0]?.entity_id
-        }
-        findStates(area, "binary_sensor").forEach(binarySensorState => {
-          switch (binarySensorState.attributes.device_class) {
-            case "window":
-              if (!window) {
-                window = binarySensorState.entity_id;
-              }
-              
-              break;
-            case "lock":
-              if (!lock) {
-                lock = binarySensorState.entity_id;
-              }
-              
-              break;
-            case "door":
-              if (!door) {
-                door = binarySensorState.entity_id;
-              }
-              
-              break;
-            default:
-              // Handle other device classes if needed
-              break;
-          }
-        })
-      }
 
       // If configured or found, create template
-      if (window || door || lock) {
-        let badge;
-        let badgeConditions = []
-        
-        if (lock) {
-          badgeConditions.push({entity: lock, state: 'unlocked', icon: 'mdi:lock-open'})
-        }
-        if (window) {
-          badgeConditions.push({entity: window, state: 'on', icon: 'mdi:window-open-variant'})
-        }
-        if (door) {
-          badgeConditions.push({entity: door, state: 'on', icon: 'mdi:door-open'})
-        }
-
-        if (badgeConditions.length) {
-          badge = badgeConditions
-            .map(condition => `is_state('${condition.entity}', '${condition.state}') %}${condition.icon}{%`)
-            .join(' elif ')
-          badge = `{% if ${badge} endif %}`
-        }
+      let badgeConditions = []
+      if (lock) {
+        badgeConditions.push({entity: lock, state: 'unlocked', icon: 'mdi:lock-open'})
+      }
+      if (window) {
+        badgeConditions.push({entity: window, state: 'on', icon: 'mdi:window-open-variant'})
+      }
+      if (door) {
+        badgeConditions.push({entity: door, state: 'on', icon: 'mdi:door-open'})
+      }
+      if (badgeConditions.length) {
+        let badge = badgeConditions
+          .map(condition => `is_state('${condition.entity}', '${condition.state}') %}${condition.icon}{%`)
+          .join(' elif ')
+        badge = `{% if ${badge} endif %}`
 
         cardOptions = {
           ...{
