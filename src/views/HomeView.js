@@ -318,9 +318,11 @@ class HomeView extends AbstractView {
         }))
       }
 
-      findStates(area, "cover").forEach(state => {
-        chips.push(makeChip('entity', state.entity_id))
-      });
+      // Ideally, I would only see covers than are open when elevation is low / night
+      // While I should see closed covers when elevation high / day
+      // findStates(area, "cover").forEach(state => {
+      //   chips.push(makeChip('entity', state.entity_id))
+      // });
       findStates(area, "media_player").forEach(state => {
         chips.push(makeChip('conditional', state.entity_id, {}, {state: "playing"}))
         chips.push(makeChip('conditional', state.entity_id, {}, {state: "on"}))
