@@ -57,12 +57,19 @@ class TitleCard {
 
     if (this.#options.showControls) {
       cards.push({
-        type: "horizontal-stack",
-        cards: [
+        type: "custom:mushroom-chips-card",
+        alignment: 'end',
+        card_mod: {
+          style: `
+          ha-card {
+            margin: 18px 0;
+          }
+          `
+        },
+        chips: [
           {
-            type: "custom:mushroom-template-card",
+            type: 'template',
             icon: this.#options.iconOff,
-            layout: "vertical",
             icon_color: "red",
             tap_action: {
               action: "call-service",
@@ -74,9 +81,8 @@ class TitleCard {
             },
           },
           {
-            type: "custom:mushroom-template-card",
+            type: 'template',
             icon: this.#options.iconOn,
-            layout: "vertical",
             icon_color: "amber",
             tap_action: {
               action: "call-service",
@@ -87,7 +93,7 @@ class TitleCard {
               data: {},
             },
           },
-        ],
+        ]
       });
     }
 
