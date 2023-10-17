@@ -219,10 +219,8 @@ class HomeView extends AbstractView {
             if (state.state === "unavailable") {
               continue;
             }
-            if (device_class
-              && Array.isArray(device_class)
-                ? !device_class.includes(state.attributes.device_class)
-                : device_class !== state.attributes.device_class
+            if (!!device_class
+              && !(Array.isArray(device_class) ? device_class : [device_class]).includes(state.attributes.device_class)
             ) {
               continue;
             }
