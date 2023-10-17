@@ -25,6 +25,7 @@ class ClimateCard extends AbstractCard {
       "fan_only",
     ],
     show_temperature_control: true,
+    collapsible_controls: true,
   };
 
   /**
