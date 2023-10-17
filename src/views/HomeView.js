@@ -367,6 +367,7 @@ class HomeView extends AbstractView {
                 card_mod: {
                   style: `ha-card {
                     border: none;
+                    margin-bottom: -10px;
                   }`
                 }
               },
@@ -400,6 +401,7 @@ class HomeView extends AbstractView {
                 alignment: 'center',
                 card_mod: {
                   style: `ha-card {
+                    margin-top: 5px;
                     margin-bottom: 10px;
                   }`
                 }
