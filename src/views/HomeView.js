@@ -323,6 +323,7 @@ class HomeView extends AbstractView {
       });
       findStates(area, "media_player").forEach(state => {
         chips.push(makeChip('conditional', state.entity_id, {}, {state: "playing"}))
+        chips.push(makeChip('conditional', state.entity_id, {}, {state: "on"}))
       });
 
       findStates(area, "climate").forEach(state => {
