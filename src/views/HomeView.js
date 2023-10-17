@@ -287,20 +287,21 @@ class HomeView extends AbstractView {
       const co2EntityIds = findStates(area, "sensor").filter(state => {
         return 'carbon_dioxide' === state.attributes.device_class
       }).map(state => state.entity_id)
-      if (temperature || humidity || lux || co2EntityIds.length) {
-        let secondary = [];
-        if (temperature) {
-          secondary.push(`🌡️{{ states('${temperature}') | int }}°`)
-        }
-        if (humidity) {
-          secondary.push(`💧{{ states('${humidity}') | int }}%`)
-        }
-        // if (lux) {
-        //   secondary.push(`☀️{{ states('${lux}') | int }}lx`)
-        // }
-        co2EntityIds.forEach(entityId => {
-          secondary.push(`😶‍🌫️{{ states('${entityId}') }}{{ state_attr('${entityId}', 'unit_of_measurement') or '' }}`)
-        })
+
+      let secondary = [];
+      if (temperature) {
+        secondary.push(`🌡️{{ states('${temperature}') | int }}°`)
+      }
+      if (humidity) {
+        secondary.push(`💧{{ states('${humidity}') | int }}%`)
+      }
+      // if (lux) {
+      //   secondary.push(`☀️{{ states('${lux}') | int }}lx`)
+      // }
+      co2EntityIds.forEach(entityId => {
+        secondary.push(`😶‍🌫️{{ states('${entityId}') }}{{ state_attr('${entityId}', 'unit_of_measurement') or '' }}`)
+      })
+      if (secondary.length) {
         cardOptions = {
           ...{
             secondary: secondary.join(' '),
@@ -309,6 +310,7 @@ class HomeView extends AbstractView {
           ...cardOptions,
         }
       }
+
       if (motion) {
         chips.push(makeChip('conditional', motion, {
           icon: 'mdi:motion-sensor',
