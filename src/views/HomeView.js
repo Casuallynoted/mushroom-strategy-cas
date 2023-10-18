@@ -292,11 +292,11 @@ class HomeView extends AbstractView {
         secondary.push(`🌡️{{ states('${temperature}') | int }}°`)
       }
       if (humidity) {
-        secondary.push(`💧{{ states('${humidity}') | int }}%`)
+        // secondary.push(`💧{{ states('${humidity}') | int }}%`)
       }
-      // if (lux) {
-      //   secondary.push(`☀️{{ states('${lux}') | int }}lx`)
-      // }
+      if (lux) {
+        // secondary.push(`☀️{{ states('${lux}') | int }}lx`)
+      }
       co2EntityIds.forEach(entityId => {
         secondary.push(`😶‍🌫️{{ states('${entityId}') }}{{ state_attr('${entityId}', 'unit_of_measurement') or '' }}`)
       })
