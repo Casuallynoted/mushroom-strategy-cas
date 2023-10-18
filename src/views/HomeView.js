@@ -298,7 +298,7 @@ class HomeView extends AbstractView {
         // secondary.push(`☀️{{ states('${lux}') | int }}lx`)
       }
       co2EntityIds.forEach(entityId => {
-        secondary.push(`😶‍🌫️{{ states('${entityId}') }}{{ state_attr('${entityId}', 'unit_of_measurement') or '' }}`)
+        secondary.push(`☁️{{ states('${entityId}') }}`)
       })
       if (secondary.length) {
         cardOptions = {
