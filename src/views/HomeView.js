@@ -57,22 +57,7 @@ class HomeView extends AbstractView {
         {
           type: "horizontal-stack",
           cards: personCards,
-        },
-        {
-          type: "custom:mushroom-template-card",
-          primary: "{% set time = now().hour %} {% if (time >= 18) %} Good Evening, {{user}}! {% elif (time >= 12) %} Good Afternoon, {{user}}! {% elif (time >= 5) %} Good Morning, {{user}}! {% else %} Hello, {{user}}! {% endif %}",
-          icon: "mdi:hand-wave",
-          icon_color: "orange",
-          tap_action: {
-            action: "none",
-          },
-          double_tap_action: {
-            action: "none",
-          },
-          hold_action: {
-            action: "none",
-          },
-        },
+        }
       ];
 
       // Add quick access cards.
@@ -211,14 +196,255 @@ class HomeView extends AbstractView {
         }
       }
 
+      let cardOptions   = Helper.strategyOptions.areas[area.area_id ?? "undisclosed"];
+      let temperature = Helper.strategyOptions.areas[area.area_id]?.temperature;
+      let humidity = Helper.strategyOptions.areas[area.area_id]?.humidity;
+      let lux = Helper.strategyOptions.areas[area.area_id]?.illuminance;
+      let window = Helper.strategyOptions.areas[area.area_id]?.window;
+      let lock = Helper.strategyOptions.areas[area.area_id]?.lock;
+      let door = Helper.strategyOptions.areas[area.area_id]?.door;
+      let motion = Helper.strategyOptions.areas[area.area_id]?.motion ?? Helper.strategyOptions.areas[area.area_id]?.occupancy ?? Helper.strategyOptions.areas[area.area_id]?.presence;
+      let cover = Helper.strategyOptions.areas[area.area_id]?.cover;
+      let lightGroup = Helper.strategyOptions.areas[area.area_id]?.light_group;
+
+      let chips = []
+      
+      // Search for sensors if not configured
+      const findStates = (area, entity_type, device_class = null) => {
+        let found = []
+        const entities = Helper.getDeviceEntities(area, entity_type);
+        if (entities.length) {
+          const entitiesStates = Helper.getStateEntities(area, entity_type);
+          for (const entity of entities) {
+            const state = entitiesStates.find(state => state.entity_id === entity.entity_id);
+            if (state.state === "unavailable") {
+              continue;
+            }
+            if (!!device_class
+              && !(Array.isArray(device_class) ? device_class : [device_class]).includes(state.attributes.device_class)
+            ) {
+              continue;
+            }
+            found.push(state)
+          }
+        }
+        return found
+      }
+      const makeChip = (type, entity_id, options = {}, condition = {state: 'on'}) => {
+        const chip = {
+          type: type !== 'conditional' ? type : 'entity',
+          content_info: 'none',
+          tap_action: {
+            action: 'toggle'
+          },
+          double_tap_action: {
+            action: 'more-info'
+          },
+          hold_action: {
+            action: 'more-info'
+          },
+          entity: entity_id,
+          ...options,
+        }
+
+        return type !== 'conditional' ? chip : {
+          type,
+          conditions: [
+            {
+              entity: entity_id,
+              ...condition
+            }
+          ],
+          chip
+        }
+      }
+
+      if (!temperature) {
+        temperature = findStates(area, "sensor", "temperature")[0]?.entity_id
+      }
+      if (!humidity) {
+        humidity = findStates(area, "sensor", "humidity")[0]?.entity_id
+      }
+      if (!lux) {
+        lux = findStates(area, "sensor", "illuminance")[0]?.entity_id
+      }
+      if (!motion) {
+        motion = findStates(area, "binary_sensor", ["motion", "occupancy", "presence"])[0]?.entity_id
+      }
+      if (!lock) {
+        lock = findStates(area, "lock")[0]?.entity_id || findStates(area, "binary_sensor", "lock")[0]?.entity_id
+      }
+      if (!window) {
+        window = findStates(area, "binary_sensor", "window")[0]?.entity_id
+      }
+      if (!door) {
+        door = findStates(area, "binary_sensor", "door")[0]?.entity_id
+      }
+
+      // If configured or found, create template
+
+      const co2EntityIds = findStates(area, "sensor").filter(state => {
+        return 'carbon_dioxide' === state.attributes.device_class
+      }).map(state => state.entity_id)
+
+      let secondary = [];
+      if (temperature) {
+        secondary.push(`🌡️{{ states('${temperature}') | int }}°`)
+      }
+      if (humidity) {
+        // secondary.push(`💧{{ states('${humidity}') | int }}%`)
+      }
+      if (lux) {
+        // secondary.push(`☀️{{ states('${lux}') | int }}lx`)
+      }
+      co2EntityIds.forEach(entityId => {
+        secondary.push(`☁️{{ states('${entityId}') }}`)
+      })
+      if (secondary.length) {
+        cardOptions = {
+          ...{
+            secondary: secondary.join(' '),
+            multiline_secondary: true
+          },
+          ...cardOptions,
+        }
+      }
+
+      if (motion) {
+        chips.push(makeChip('conditional', motion, {
+          icon: 'mdi:motion-sensor',
+          tap_action: {
+            action: 'more-info'
+          }
+        }))
+      }
+
+      // Ideally, I would only see covers than are open when elevation is low / night
+      // While I should see closed covers when elevation high / day
+      // findStates(area, "cover").forEach(state => {
+      //   chips.push(makeChip('entity', state.entity_id))
+      // });
+      findStates(area, "media_player").forEach(state => {
+        chips.push(makeChip('conditional', state.entity_id, {}, {state: "playing"}))
+        chips.push(makeChip('conditional', state.entity_id, {}, {state: "on"}))
+      });
+
+      findStates(area, "climate").forEach(state => {
+        chips.push(makeChip('conditional', state.entity_id, {}, {state_not: "off"}))
+      })
+
+      
+      if (lightGroup) {
+        let lightChip = {
+          type: 'conditional',
+          conditions: [
+            {entity: lightGroup, state: 'on'}
+          ],
+          chip: {
+            type: 'template',
+            entity: lightGroup,
+            icon: 'mdi:lightbulb-group',
+            // content: `{{ ['${lightGroup}'] | expand | selectattr('state','eq','on') | list | count }}`,
+            tap_action: {
+              action: 'toggle'
+            },
+            double_tap_action: {
+              action: 'more-info'
+            },
+            hold_action: {
+              action: 'more-info'
+            },
+          }
+        }
+        chips.push(lightChip)
+      }
+
+      // If configured or found, create template
+      let badgeConditions = []
+      if (lock) {
+        badgeConditions.push({entity: lock, state: 'unlocked', icon: 'mdi:lock-open'})
+      }
+      if (window) {
+        badgeConditions.push({entity: window, state: 'on', icon: 'mdi:window-open-variant'})
+      }
+      if (door) {
+        badgeConditions.push({entity: door, state: 'on', icon: 'mdi:door-open'})
+      }
+      if (badgeConditions.length) {
+        let badge = badgeConditions
+          .map(condition => `is_state('${condition.entity}', '${condition.state}') %}${condition.icon}{%`)
+          .join(' elif ')
+        badge = `{% if ${badge} endif %}`
+
+        cardOptions = {
+          ...{
+            badge_icon: badge,
+            badge_color: "red",
+          },
+          ...cardOptions,
+        }
+      }
+
       // Get a card for the area.
       if (!Helper.strategyOptions.areas[area.area_id]?.hidden) {
-        let options = {
-          ...Helper.strategyOptions.areas["_"],
-          ...Helper.strategyOptions.areas[area.area_id ?? "undisclosed"],
-        };
+        let card = new module.AreaCard(area, cardOptions).getCard()
+        if (chips.length) {
+          console.log('wrapping in stack', {cardOptions, card, chips})
+          // See https://community.home-assistant.io/t/mushroom-cards-build-a-beautiful-dashboard-easily/388590/8146
+          card = {
+            type: 'custom:stack-in-card',
+            mode: 'vertical',
+            cards: [
+              {
+                ...card,
+                card_mod: {
+                  style: `ha-card {
+                    border: none;
+                  }`
+                }
+              },
+              {
+                type: 'custom:mushroom-chips-card',
+                chips: chips.map(chip => {
+                  const card_mod = {
+                    style: `:host {
+                      --chip-height: 25px;
+                      --chip-box-shadow: 0px 1px 4px rgba(0,0,0,0.2);
+                      --chip-border-width: 0px;
+                      --chip-spacing: 2px;
+                    }
+                    `
+                  }
+                  if (chip.type === 'conditional') {
+                    return {
+                      ...chip,
+                      chip: {
+                        ...chip.chip,
+                        card_mod,
+                      }
+                    }
+                  }
 
-        areaCards.push(new module.AreaCard(area, options).getCard());
+                  return {
+                    ...chip,
+                    card_mod
+                  }
+                }),
+                alignment: 'start',
+                card_mod: {
+                  style: `ha-card {
+                    margin-bottom: 10px;
+                    margin-left: 12px;
+                  }`
+                }
+              }
+            ],
+            
+          }
+          console.log('wrapped in stack', {card})
+        }
+
+        areaCards.push(card);
       }
 
       // Horizontally group every two area cards if all cards are created.
